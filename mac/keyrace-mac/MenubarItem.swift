@@ -125,6 +125,8 @@ class MenubarItem : NSObject {
     private var keyChartItem : NSMenuItem
     private var leaderboardItem : NSMenuItem
     
+    var leaderboard: [PlayerScore]?
+    
     var gh : GitHub? {
         didSet {
             if gh!.loggedIn {
@@ -153,8 +155,9 @@ class MenubarItem : NSObject {
         minChartItem = NSMenuItem()
         hourChartItem = NSMenuItem()
         keyChartItem = NSMenuItem()
-        leaderboardItem = NSMenuItem()
 
+        leaderboardItem = NSMenuItem()
+        
         super.init()
 
         statusBarItem.button?.title = title
@@ -184,14 +187,10 @@ class MenubarItem : NSObject {
         keyChart.xAxis.granularity = 1
         keyChart.xAxis.valueFormatter = KeyAxisValueFormatter()
         keyChart.xAxis.drawLabelsEnabled = true
-        
 
-        let leaderboard = NSTextView(frame: CGRect(x: 0, y: 0, width: 350, height: 0))
-        leaderboard.string = ""
-        leaderboard.isRichText = true
-        leaderboard.drawsBackground = false
-        leaderboard.textContainerInset = NSSizeFromString("10")
-        leaderboardItem.view = leaderboard
+        let leaderboardView = LeaderboardView.init(frame: CGRect(x: 0, y: 0, width: 350, height: 0))
+        leaderboardView.setup(leaderboard ?? [PlayerScore]())
+        leaderboardItem.view = leaderboardView
         
         quitMenuItem.target = self
         loginMenuItem.target = self
@@ -294,14 +293,11 @@ extension MenubarItem : NSMenuDelegate {
         (self.minChartItem.view as? TypingChart)?.NewData((keyTap?.getMinutesChart())!)
         (self.hourChartItem.view as? TypingChart)?.NewData((keyTap?.getHoursChart())!, color: [255, 0, 0])
         (self.keyChartItem.view as? TypingChart)?.NewData((keyTap?.getKeysChart())!, color: [0, 255, 255])
-        let leaderboardView = (self.leaderboardItem.view as? NSTextView)
-        let str = (keyTap?.getLeaderboardText())
-        leaderboardView!.performValidatedReplacement(
-            in: NSRange(location: 0, length: leaderboardView!.string.count),
-            with: str!)
+        
+        // Set the leaderboard data.
+        self.leaderboard = keyTap?.getLeaderboard()
+        (self.leaderboardItem.view as? LeaderboardView)?.setup(leaderboard ?? [PlayerScore]())
         
         self.onlyShowFollows.state = MenuSettings.getOnlyShowFollows()
-        
-        self.leaderboardItem.isHidden = true // FIXME why doesn't this work?
     }
 }

@@ -87,7 +87,7 @@ class KeyTap {
     var KEYRACE_HOST = "keyrace.app"
     var minutes = [Int](repeating:0, count:1440)
     var keys = [Int](repeating: 0, count:256)
-    var leaderboardText = NSMutableAttributedString()
+    var leaderboard = [PlayerScore]()
     
     init(_ appd: AppDelegate) {
         self.appDelegate = appd
@@ -152,8 +152,8 @@ class KeyTap {
         return Array(keys[97...97+25])
     }
 
-    func getLeaderboardText() -> NSMutableAttributedString {
-        return leaderboardText
+    func getLeaderboard() -> [PlayerScore] {
+        return leaderboard
     }
     
     func uploadKeycount() {
@@ -169,7 +169,6 @@ class KeyTap {
         if MenuSettings.getOnlyShowFollows() == NSControl.StateValue.on {
             url.queryItems?.append(URLQueryItem(name: "only_follows", value: "1"))
         }
-
         var request = URLRequest(url: url.url!)
         request.addValue("Bearer \(appDelegate.gh!.token!)", forHTTPHeaderField: "Authorization")
         
@@ -181,59 +180,25 @@ class KeyTap {
                     print("Error uploading count \(error!)")
                     return
             }
-
             
             if let json_leaders = try? JSONSerialization.jsonObject(with: data, options: []) as? [[String: Any]] {
-                let title = "Leaderboard\n"
-                let attrTitle = NSMutableAttributedString(string: title)
-                attrTitle.addAttribute(.font, value: NSFont.monospacedSystemFont(ofSize: 14, weight: .bold) as Any, range: NSRange(location: 0, length: title.count))
-                self.leaderboardText = NSMutableAttributedString()
-                self.leaderboardText.append(attrTitle)
+                var scores = [PlayerScore]()
                 
-                // Add paragraph styling
-                let paragraphStyle = NSMutableParagraphStyle()
-                paragraphStyle.lineSpacing = 7
-                paragraphStyle.alignment = .justified
-                self.leaderboardText.addAttribute(.paragraphStyle, value: paragraphStyle, range: NSRange(location: 0, length: self.leaderboardText.length))
-                
-                for (i, leader) in json_leaders.enumerated(){
+                for leader in json_leaders{
                     var u = ""
                     if let username = leader["username"] as? String {
                         u = username
                     }
-                    let fullUsername = "@" + u
-                    var s = ""
+                    var s = 0
                     if let score = leader["score"] as? Int {
-                        s = String(format: " \t %d", score)
-                        if u.count < 5 {
-                            // Add an extra tab for justication
-                            // FIXME: this is hokey...
-                          s = "\t"+s
-                        }
-                        if i == 0 {
-                            // They are the winner!
-                            s += " \t 🎉"
-                        }
-                        s += "\n"
+                        s = score
                     }
-                    
-                    // Do the font styling for the line.
-                    let attrLine = NSMutableAttributedString(string: fullUsername + s)
-                    attrLine.addAttribute(.font, value: NSFont.monospacedSystemFont(ofSize: 12, weight: .regular), range: NSRange(location: 0, length: fullUsername.count + s.count))
-                    attrLine.addAttribute(.link,
-                                              value: NSURL(string: "https://github.com/"+u)!,
-                                              range: NSRange(location: 0, length: fullUsername.count))
-                    attrLine.addAttribute(.cursor,
-                                              value: NSCursor.pointingHand,
-                                              range: NSRange(location: 0, length: fullUsername.count))
-                    self.leaderboardText.append(attrLine)
+                    scores.append(PlayerScore(username: u, score: s))
                 }
                 
-                self.leaderboardText.addAttribute(.paragraphStyle, value: paragraphStyle, range: NSRange(location: 0, length: self.leaderboardText.length))
-                self.leaderboardText.setAlignment(.justified, range: NSRange(location: 0, length: self.leaderboardText.length))
+                // Set the leaderboard data for the table view.
+                self.leaderboard = scores;
             }
-    
-           
         }
         task.resume()
     }
